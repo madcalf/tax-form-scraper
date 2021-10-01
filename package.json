@@ -1,0 +1,11 @@
+{
+  "name": "tax_form_scraper",
+  "version": "1.0.0",
+  "description": "Searches and downloads tax forms from the IRS website",
+  "main": "searchIRSForms.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "D Dixon",
+  "license": "ISC"
+}
