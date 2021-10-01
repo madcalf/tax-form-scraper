@@ -9,6 +9,7 @@
   "author": "D Dixon",
   "license": "ISC",
   "dependencies": {
-    "axios": "^0.22.0"
+    "axios": "^0.22.0",
+    "jsdom": "^17.0.0"
   }
 }
