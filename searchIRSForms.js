@@ -1,38 +1,41 @@
 const axios = require('axios');
 const jsdom = require('jsdom');
 const { JSDOM } = jsdom;
-const results = [];
+let results = [];
 const searchUrl =
   'https://apps.irs.gov/app/picklist/list/priorFormPublication.html?criteria=formNumber&value=[FORM_NAME]&submitSearch=Find';
+
+// Note not dealiing with pagination... yet... But here's some searches that may help that process
 //  'https://apps.irs.gov/app/picklist/list/priorFormPublication.html?resultsPerPage=100&sortColumn=sortOrder&indexOfFirstRow=0&criteria=formNumber&value=Form+1099&isDescending=false'
-//  page 2?
 //  'https://apps.irs.gov/app/picklist/list/priorFormPublication.html?indexOfFirstRow=25&sortColumn=sortOrder&value=Form+1040-EZ&criteria=formNumber&resultsPerPage=25&isDescending=false'
 
-// Note not dealiing with pagination... yet...
-
-const getFormData = async (formName) => {
+const searchForForm = async (formName) => {
   console.log('getting data for...', formName);
   const req = searchUrl.replace('[FORM_NAME]', formName);
+  let result;
   try {
     const { data } = await axios.get(req);
-    const { document: doc } = new JSDOM(data).window;
+    const { document: htmlDoc } = new JSDOM(data).window;
 
     // check for errors before proceeding. Look for <p id="errorText">
-    const error = doc.querySelector('p#errorText');
+    const error = htmlDoc.querySelector('p#errorText');
     if (error) {
-      console.error('ERROR', `No results found for '${formName}'`);
+      console.error(`No results found for '${formName}'`);
     } else {
-      console.log(`Results found for '${formName}'. Parsing results`);
-      parseContent(doc, formName);
+      result = parseSearchResults(htmlDoc, formName);
+      if (Object.keys(result).length === 0) {
+        console.error(`No results match the specific form name '${formName}'`);
+      }
+      return result;
     }
   } catch (e) {
-    console.error(e);
+    console.error('ERROR!', e.message);
   }
 };
 
-const parseContent = (doc, formName) => {
-  // parse the list of items in the html data into the required json format
-  const tableRows = doc.querySelectorAll('table.picklist-dataTable tr');
+// parse the list of items in the html data into the required json format
+const parseSearchResults = (htmlDoc, formName) => {
+  const tableRows = htmlDoc.querySelectorAll('table.picklist-dataTable tr');
   let obj = {};
 
   if (tableRows.length > 1) {
@@ -44,7 +47,7 @@ const parseContent = (doc, formName) => {
           .querySelector('td[class=LeftCellSpacer]>a')
           .textContent.trim();
 
-        // If productName is not exactly the thing we searched, don't continue
+        // Only continue if productName is exactly the thing we searched
         if (productName === formName) {
           obj.form_name = productName;
           obj.form_title = row
@@ -57,24 +60,32 @@ const parseContent = (doc, formName) => {
 
           if (!obj.max_year || year > obj.max_year) obj.max_year = year;
           if (!obj.min_year || year < obj.min_year) obj.min_year = year;
-        } else {
-          // console.error`This product (${productName}) does not match the search term (${formName})`();
         }
       }
     });
   }
-  if (Object.keys(obj).length > 0) {
-    results.push(obj);
-  }
-  console.log(JSON.stringify(results));
-  return JSON.stringify(results);
+  return obj;
 };
 
-// actual args start at index 2 of argv
-// pass args as one string of comma separated values. E.g 'Form 1040, Form-1099'.
+const getTaxFormData = async (args) => {
+  const promises = args.map((arg) => searchForForm(arg.trim()));
+  await Promise.all(promises);
 
-// const args = process.argv.slice(2);
-const args = process.argv[2].split(',');
-args.forEach((arg) => {
-  getFormData(arg.trim());
-});
+  await promises.forEach(async (p) => {
+    const val = await p;
+    if (val && Object.keys(val).length) {
+      results.push(val);
+    }
+  });
+
+  process.stdout.write(`${JSON.stringify(results)}\n`);
+};
+
+// Note args passed in start at index 2 of argv
+// Expecting args as one string of comma separated values. E.g 'Form 1040, Form-1099'.
+if (process.argv.length > 3) {
+  console.error('Please specify a single string with comma separated values');
+} else {
+  const args = process.argv[2].split(',');
+  getTaxFormData(args);
+}
