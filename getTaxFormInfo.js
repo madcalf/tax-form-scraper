@@ -36,19 +36,15 @@ const getPage = async (formName, offset) =>
     }
   });
 
-const searchForForm = (formName, offset = 0) => {
-  return getPage(formName, offset).then((data) => {
-    if (data.lastResult < data.totalResults) {
-      return searchForForm(formName, data.lastResult + 1).then(
-        (nextFormData) => {
-          const allForms = data.formData.concat(nextFormData);
-          return allForms;
-        }
-      );
-    } else {
-      return data.formData;
-    }
-  });
+const searchForForm = async (formName, offset = 0) => {
+  const data = await getPage(formName, offset);
+  if (data.lastResult < data.totalResults) {
+    return data.formData.concat(
+      await searchForForm(formName, data.lastResult + 1)
+    );
+  } else {
+    return data.formData;
+  }
 };
 
 const getResultCount = (htmlDoc) => {
