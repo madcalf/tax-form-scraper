@@ -118,15 +118,15 @@ const summarizeFormData = (formData) => {
   return obj;
 };
 
-const getTaxFormData = (args) => {
-  const promises = args.map((arg) =>
-    searchForForm(arg.trim()).then((results) => {
+const getTaxFormData = async (args) => {
+  const promises = args.map((arg) => {
+    return searchForForm(arg.trim()).then((results) => {
       return summarizeFormData(results);
-    })
-  );
+    });
+  });
 
-  Promise.all(promises).then((formSummaries) => {
-    process.stdout.write(`${JSON.stringify(formSummaries.flat())}\n`);
+  return Promise.all(promises).then((formSummaries) => {
+    return JSON.stringify(formSummaries.flat());
   });
 };
 
@@ -137,5 +137,5 @@ if (process.argv.length > 3) {
   console.error('Please specify a single string with comma separated values');
 } else {
   const args = process.argv[2].split(',');
-  getTaxFormData(args);
+  getTaxFormData(args).then((json) => process.stdout.write(`${json}\n`));
 }
