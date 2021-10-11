@@ -36,13 +36,14 @@ const getPage = async (formName, offset) =>
     }
   });
 
-const searchForForm = async (formName, offset = 0) => {
-  console.log(`Searching form ${formName} at offset ${offset}...`);
-
+const searchForForm = (formName, offset = 0) => {
   return getPage(formName, offset).then((data) => {
     if (data.lastResult < data.totalResults) {
-      return searchForForm(formName, data.lastResult + 1).then((nextFormData) =>
-        data.formData.concat(nextFormData)
+      return searchForForm(formName, data.lastResult + 1).then(
+        (nextFormData) => {
+          const allForms = data.formData.concat(nextFormData);
+          return allForms;
+        }
       );
     } else {
       return data.formData;
@@ -121,7 +122,7 @@ const summarizeFormData = (formData) => {
   return obj;
 };
 
-const getTaxFormData = async (args) => {
+const getTaxFormData = (args) => {
   const promises = args.map((arg) =>
     searchForForm(arg.trim()).then((results) => {
       return summarizeFormData(results);
