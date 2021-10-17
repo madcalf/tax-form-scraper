@@ -1,17 +1,3 @@
-// // URL of the image
-// const url = 'GFG.jpeg';
-
-// https.get(url,(res) => {
-//     // Image will be stored at this path
-//     const path = `${__dirname}/files/img.jpeg`;
-//     const filePath = fs.createWriteStream(path);
-//     res.pipe(filePath);
-//     filePath.on('finish',() => {
-//         filePath.close();
-//         console.log('Download Completed');
-//     })
-// })
-
 const path = require('path');
 const fs = require('fs-extra');
 const { DownloaderHelper } = require('node-downloader-helper');
@@ -104,37 +90,36 @@ const extractPdfLinks = (htmlDoc, formName) => {
   return arr;
 };
 
-const downloadTaxForms = (formName, minYear, maxYear) => {
+const downloadTaxForms = async (formName, minYear, maxYear) => {
   // create directory for this form
   const filepath = path.join(__dirname, formName);
   fs.ensureDir(filepath);
 
-  searchForFormLinks(formName).then((results) => {
-    // download the files
-    const promises = results.map(({ form_name, url, year }) => {
-      // console.log(form_name, form.url, form.year);
-      if (year >= minYear && year <= maxYear) {
-        const options = {
-          fileName: `${form_name} - ${year}.pdf`,
-          override: true,
-        };
-        const dl = new DownloaderHelper(url, filepath, options);
-        dl.start();
-        return dl;
-      }
-    });
+  const results = await searchForFormLinks(formName);
 
-    Promise.all(promises).then((promise) => {
-      console.log(`Downloaded ${promises.length} files.`);
-    });
+  filteredResults = results.filter(({ year }) => {
+    let yearInt = parseInt(year);
+    return yearInt >= minYear && yearInt <= maxYear;
+  });
+
+  const promises = filteredResults.map(({ form_name, url, year }) => {
+    const options = {
+      fileName: `${form_name} - ${year}.pdf`,
+      override: true,
+    };
+    const dl = new DownloaderHelper(url, filepath, options);
+    dl.start();
+    return dl;
+  });
+
+  Promise.all(promises).then((promise) => {
+    console.log(`Downloaded ${promises.length} files to ${filepath}`);
   });
 };
 
 if (process.argv.length > 5) {
-  console.error('Specify the form Name, min year, max year');
+  console.error('Specify the [form Name] [minYear] [maxYear]');
 } else {
   const [form, minyear, maxyear] = process.argv.slice(2, 5);
   downloadTaxForms(form, minyear, maxyear);
 }
-
-// console.log(process.argv);
